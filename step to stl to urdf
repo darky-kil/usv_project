@@ -1,0 +1,56 @@
+  GNU nano 6.2                                       /home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
+<?xml version="1.0"?>
+<robot name="oystermaran">
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/base_link.stl"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.2 0.8 0.2 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="left_fan">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/left_fan.stl"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.6 0.6 0.6 1.0"/>
+      </material>
+    </visual>
+  </link>
+  
+  <joint name="left_fan_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_fan"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/> </joint>
+
+  <link name="right_fan">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/right_fan.stl"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.6 0.6 0.6 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="right_fan_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_fan"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+</robot>
+//errors, fan are like orbiting the place not rotating on its axis where it should be....
