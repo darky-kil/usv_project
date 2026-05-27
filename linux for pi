@@ -1,1 +1,20 @@
 browser linux before wed
+pwd           # where am I
+ls -la        # what’s here
+cd folder     # enter folder
+cd ..         # go back
+mkdir x       # make folder
+nano file.py   # create/edit file
+cat file.py    # read file
+cp a b        # copy
+mv a b        # move/rename
+rm file       # delete file
+rm -r folder  # delete folder
+sudo apt update
+sudo apt install package
+pip3 install package
+ps aux
+kill PID
+Ctrl+C
+Ctrl+Z
+fg
