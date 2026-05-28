@@ -1,0 +1,45 @@
+Create a new folder anywhere on your computer (e.g., Desktop/my_ocean).
+
+Inside that folder, create a new text file and name it empty_ocean.sdf.
+
+Open it in any text editor, paste the following code, and save it:
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="empty_ocean_world">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics" />
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster" />
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands" />
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <include>
+      <name>Coast Waves</name>
+      <pose>0 0 0 0 0 0</pose>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coast Waves</uri>
+    </include>
+
+  </world>
+</sdf>
+
+to launch.......booooom
+Open your terminal.  
+
+Navigate to the folder where you saved the file (e.g., cd ~/Desktop/my_ocean).  
+
+Run the file using the Gazebo simulator command:  
+
+Bash
+gz sim empty_ocean.sdf
+(Note: Depending on your installation, you might need to type ign gazebo empty_ocean.sdf instead).
