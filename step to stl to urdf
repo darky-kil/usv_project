@@ -54,3 +54,8 @@
 
 </robot>
 //errors, fan are like orbiting the place not rotating on its axis where it should be....
+
+to opem----
+nano ~/usv_ws/src/usv_description/urdf/usv.urdf
+then-
+ros2 launch urdf_tutorial display.launch.py model:=/home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
