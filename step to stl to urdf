@@ -1,5 +1,5 @@
   GNU nano 6.2                                       /home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
-<?xml version="1.0"?>
+//<?xml version="1.0"?>
 <robot name="oystermaran">
 
   <link name="base_link">
@@ -59,3 +59,82 @@ to opem----
 nano ~/usv_ws/src/usv_description/urdf/usv.urdf
 then-
 ros2 launch urdf_tutorial display.launch.py model:=/home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
+
+
+
+------eorrors fixed- scaling issue and origin issue fixed-
+to find the coordingates of the proppelorr-
+import numpy as np
+from stl import mesh  # pip install numpy-stl
+
+paths = {
+    "base_link": "/home/solvnik/usv_ws/src/usv_description/meshes/base_link.stl",
+    "left_fan":  "/home/solvnik/usv_ws/src/usv_description/meshes/left_fan.stl",
+    "right_fan": "/home/solvnik/usv_ws/src/usv_description/meshes/right_fan.stl",
+}
+
+for name, path in paths.items():
+    m = mesh.Mesh.from_file(path)
+    verts = m.vectors.reshape(-1, 3)
+    mins = verts.min(axis=0)
+    maxs = verts.max(axis=0)
+    center = (mins + maxs) / 2
+    print(f"\n{name}:")
+    print(f"  bbox center : {center}")
+    print(f"  min xyz     : {mins}")
+    print(f"  max xyz     : {maxs}")
+
+
+
+--------new urdf codde with scaling issue fix*** the most fked up error- its in in meters, and was taking in mm
+<?xml version="1.0"?>
+<robot name="oystermaran">
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/base_link.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="green"><color rgba="0.2 0.8 0.2 1.0"/></material>
+    </visual>
+  </link>
+
+  <link name="left_fan">
+    <visual>
+      <origin xyz="-0.5483 -0.1947 0.0458" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/left_fan.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="grey"><color rgba="0.6 0.6 0.6 1.0"/></material>
+    </visual>
+  </link>
+
+  <joint name="left_fan_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_fan"/>
+    <origin xyz="0.5483 0.1947 -0.0458" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="right_fan">
+    <visual>
+      <origin xyz="0.0017 -0.1947 0.0458" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/solvnik/usv_ws/src/usv_description/meshes/right_fan.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="grey"><color rgba="0.6 0.6 0.6 1.0"/></material>
+    </visual>
+  </link>
+
+  <joint name="right_fan_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_fan"/>
+    <origin xyz="-0.0017 0.1947 -0.0458" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+</robot>
