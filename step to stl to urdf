@@ -1,4 +1,4 @@
-  GNU nano 6.2                                     
+/*  GNU nano 6.2                                     
 //<?xml version="1.0"?>
 //not working- working one at the ebd
 robot name="oystermaran">
@@ -54,9 +54,9 @@ robot name="oystermaran">
   </joint>
 
 </robot
-//errors, fan are like orbiting the place not rotating on its axis where it should be....
+//errors, fan are like orbiting the place not rotating on its axis where it should be....*/
 
-to opem----
+/*to opem----
 nano ~/usv_ws/src/usv_description/urdf/usv.urdf
 then-
 ros2 launch urdf_tutorial display.launch.py model:=/home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
@@ -88,7 +88,7 @@ for name, path in paths.items():
 
 
 --------//new urdf codde with scaling issue fix*** the most fked up error- its in in meters, and was taking in mm
-//working code
+//working code*/
 <?xml version="1.0"?>
 <robot name="oystermaran">
 
