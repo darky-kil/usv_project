@@ -1,7 +1,7 @@
   GNU nano 6.2                                     
 //<?xml version="1.0"?>
 //not working- working one at the ebd
-<robot name="oystermaran">
+robot name="oystermaran">
 
   <link name="base_link">
     <visual>
@@ -53,7 +53,7 @@
     <axis xyz="0 0 1"/>
   </joint>
 
-</robot>
+</robot
 //errors, fan are like orbiting the place not rotating on its axis where it should be....
 
 to opem----
