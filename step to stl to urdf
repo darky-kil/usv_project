@@ -1,5 +1,6 @@
-  GNU nano 6.2                                       /home/solvnik/usv_ws/src/usv_description/urdf/usv.urdf
+  GNU nano 6.2                                     
 //<?xml version="1.0"?>
+//not working- working one at the ebd
 <robot name="oystermaran">
 
   <link name="base_link">
@@ -86,7 +87,8 @@ for name, path in paths.items():
 
 
 
---------new urdf codde with scaling issue fix*** the most fked up error- its in in meters, and was taking in mm
+--------//new urdf codde with scaling issue fix*** the most fked up error- its in in meters, and was taking in mm
+//working code
 <?xml version="1.0"?>
 <robot name="oystermaran">
 
