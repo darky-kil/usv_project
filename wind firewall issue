@@ -1,0 +1,3 @@
+in powershell-run as adm
+
+New-NetFirewallRule -DisplayName "Allow ROS2 WSL" -Direction Inbound -Action Allow -Protocol UDP
