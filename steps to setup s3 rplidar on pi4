@@ -1,0 +1,21 @@
+/dev/ttyUSB0
+//to check if the pi sees the usb connected to it
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src //create workspace to work within
+# 1. Clone the repository (Make sure you are inside the 'src' folder)
+git clone -b ros2 https://github.com/Slamtec/rplidar_ros.git
+
+# 2. Move back to the root of the workspace
+cd ~/ros2_ws
+
+# 3. Source the main ROS2 setup so colcon knows how to build it
+source /opt/ros/humble/setup.bash
+
+# 4. Build the package
+colcon build --packages-select rplidar_ros
+
+//above code took too much time in cloning thats why added- 
+cd ~/ros2_ws
+rm -rf build/ install/ log/
+colcon build --executor sequential --parallel-workers 1 --packages-select rplidar_ros
+//this makes sure pi dont do 4 works together, instead one at a time- may see swapping in future
