@@ -1,0 +1,107 @@
+Yes, **both the LiDAR and the MPU6050 nodes must be running in background terminals** while you are setting up Phase 3 (and any subsequent phases).
+
+In ROS2, static transforms (`static_transform_publisher`) do not strictly *require* sensor nodes to be running just to broadcast the coordinate frames. However, if your sensor nodes aren't running, you won't be able to verify that the coordinate frames are aligned correctly. Running them allows you to immediately check your work.
+
+Here is your exact terminal roadmap to get Phase 3 working and verified end-to-end.
+
+---
+
+### Terminal 1: The MPU6050 Node (Background)
+
+Start your raw IMU data stream.
+
+```bash
+cd ~/ros2_ws
+source install/setup.bash
+ros2 run usv_sensors mpu6050_node
+
+```
+
+### Terminal 2: The Madgwick Filter (Background)
+
+The MPU6050 node only outputs raw acceleration and angular velocity. The Madgwick filter processes this raw data to calculate the actual orientation (`/imu/data`).
+
+```bash
+ros2 run imu_filter_madgwick imu_filter_madgwick_node \
+  --ros-args -p use_mag:=false -p publish_tf:=false
+
+```
+
+### Terminal 3: The RPLiDAR S3 (Background)
+
+Fire up the laser scanner so it begins broadcasting `/scan`.
+
+```bash
+sudo chmod 666 /dev/ttyUSB0
+ros2 launch rplidar_ros rplidar_s3_launch.py
+
+```
+
+---
+
+### Terminal 4: The Phase 3 Static Transforms
+
+Now, open a 4th terminal to launch your physical sensor offsets. These nodes tell ROS exactly where the sensors are located relative to the boat's physical center (`base_link`).
+
+Run the LiDAR offset (20cm forward, 10cm up):
+
+```bash
+ros2 run tf2_ros static_transform_publisher 0.2 0.0 0.1 0.0 0.0 0.0 base_link base_scan
+
+```
+
+*(Keep this terminal open, or split it to run the next command)*
+
+Run the IMU offset (centered, 5cm up):
+
+```bash
+ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.05 0.0 0.0 0.0 base_link imu_link
+
+```
+
+---
+
+### Terminal 5: Verification (How to check it's correct)
+
+To ensure Phase 3 is working perfectly before you move on to the EKF (Phase 4), run these validation checks in a new terminal:
+
+#### 1. Check the TF Tree Structure
+
+Run the following command to see if your coordinate frames are linking together correctly:
+
+```bash
+ros2 run tf2_ros tf2_monitor
+
+```
+
+Alternatively, you can generate a visual graph of your tree:
+
+```bash
+ros2 run tf2_tools view_frames
+
+```
+
+This creates a PDF file named `frames.pdf` in your current directory. Open it. You should see a clean hierarchy where `base_link` splits into two children: `base_scan` and `imu_link`.
+
+#### 2. Confirm the Sensor Frame IDs Match
+
+If your sensor nodes are publishing data with the wrong `frame_id` inside their message headers, SLAM and the EKF will silently ignore them. Check them now:
+
+* **For the Laser:**
+```bash
+ros2 topic echo /scan --once | grep frame_id
+
+```
+
+
+*Expect output:* `frame_id: 'base_scan'` (If it says something else, like `laser_frame`, you must change your static transform node's last argument from `base_scan` to match whatever printed here).
+* **For the IMU:**
+```bash
+ros2 topic echo /imu/data_raw --once | grep frame_id
+
+```
+
+
+*Expect output:* `frame_id: 'imu_link'`
+
+Once your frames are linked and the message `frame_id` strings perfectly match your transform tree, Phase 3 is complete. You can leave these running and move straight to launching your EKF config in Phase 4!
