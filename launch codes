@@ -7,3 +7,6 @@ data: true
 #to remvoe the usv from the world-
 ign service -s /world/sydney_regatta/remove   --reqtype ignition.msgs.Entity   --reptype ignition.msgs.Boolean   --timeout 5000   --req 'name: "oystermaran", type: MODEL'
 data: true
+to launch the foxglove server to tell the pc to publish on specific server of foxglove =
+ ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+then add the required panel- plot or 3d and add the required series like ph.data or if soemthing of lidar
