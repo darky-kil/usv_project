@@ -1,0 +1,18 @@
+write the req code into the base link
+ros2 run ros_gz_bridge parameter_bridge /scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan
+## if gives error download following thing- sudo apt update
+sudo apt install ros-humble-ros-gz-bridge
+source /opt/ros/humble/setup.bash
+source ~/usv_ws/install/setup.bash ## get into your projects folder
+
+##try again bash-
+ros2 run ros_gz_bridge parameter_bridge /scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan
+then to send to foxglove-
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+
+##still no option to get the data in foxglove as foxglove isnt actually seeing the data coming
+in separate window-
+ros2 run ros_gz_bridge parameter_bridge /scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan
+bash this in new terminal- to tell the ros that lidar and body are at same place buddy
+in separate window-
+ros2 run tf2_ros static_transform_publisher "0" "0" "0" "0" "0" "0" "oystermaran" "oystermaran/base_link/gpu_lidar"
