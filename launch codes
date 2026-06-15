@@ -1,0 +1,9 @@
+~/usv_ws/clone/thesis_USV_gazebo/src/gazebo_maritime/worlds$ LIBGL_ALWAYS_SOFTWARE=1 ign gazebo ~/usv_ws/clone/thesis_USV_gazebo/src/gazebo_maritime/worlds/my_world.sdf
+#to launch the world
+
+#to launch the usv in the world-
+ign service -s /world/sydney_regatta/create --reqtype ignition.msgs.EntityFactory --reptype ignition.msgs.Boolean --timeout 10000 --req 'sdf_filename: "/home/solvnik/usv_ws/src/usv_description/urdf/oystermaran.sdf", name: "oystermaran"'
+data: true
+#to remvoe the usv from the world-
+ign service -s /world/sydney_regatta/remove   --reqtype ignition.msgs.Entity   --reptype ignition.msgs.Boolean   --timeout 5000   --req 'name: "oystermaran", type: MODEL'
+data: true
