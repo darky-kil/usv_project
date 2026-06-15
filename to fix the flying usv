@@ -1,0 +1,35 @@
+what the usv file currently having- causing a box vacuum btw sea and the usv   
+<plugin filename="ignition-gazebo-buoyancy-system"
+      name="ignition::gazebo::systems::Buoyancy">
+      <uniform_fluid_density>1000</uniform_fluid_density>
+      <volume>
+        <link_name>base_link</link_name>
+        <pose>0 0 0.06 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.55 0.49 0.13</size>
+          </box>
+        </geometry>
+      </volume>
+    </plugin>
+to fix this box thing- we are dividing the whole box into two pantoons with lless volume -
+=
+  <!-- LEFT pontoon volume — matches collision geometry exactly -->
+  <volume>
+    <link_name>base_link</link_name>
+    <pose>0 0.18 -0.06 0 0 0</pose>
+    <geometry>
+      <box><size>0.55 0.13 0.13</size></box>
+    </geometry>
+  </volume>
+
+  <!-- RIGHT pontoon volume — matches collision geometry exactly -->
+  <volume>
+    <link_name>base_link</link_name>
+    <pose>0 -0.18 -0.06 0 0 0</pose>
+    <geometry>
+      <box><size>0.55 0.13 0.13</size></box>
+    </geometry>
+  </volume>
+
+</plugin>
