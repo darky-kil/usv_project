@@ -2,11 +2,22 @@
 # Make sure your battery is not connected if you are going to calibrate it at first.
 # Since you are testing your motor, I hope you don't have your propeller attached to it otherwise you are in trouble my friend...?
 # This program is made by AGT @instructable.com. DO NOT REPUBLISH THIS PROGRAM... actually the program itself is harmful                                             pssst Its not, its safe.
-# prerequisits
+
+
+
+# prerequisits for pi-os
+
 - install the library ofc - sudo apt update
 sudo apt install pigpio python3-pigpio -y
 sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
+
+
+
+# for ubuntu server 0s -
+sudo apt update && sudo apt install python3-gpiozero python3-rpi.gpio -y
+
+
 
 #!/usr/bin/env python3
 # This program will let you test your ESC and brushless motor.
