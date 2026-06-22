@@ -17,7 +17,7 @@ sudo systemctl start pigpiod
 # for ubuntu server 0s -
 sudo apt update && sudo apt install python3-gpiozero python3-rpi.gpio -y
 
-
+## for pi-os
 
 #!/usr/bin/env python3
 # This program will let you test your ESC and brushless motor.
@@ -150,3 +150,151 @@ elif inp == "stop":
     stop()
 else:
     print("Invalid command. Please restart the program.")
+
+
+
+
+##########################################################################
+## for ubuntu-os
+#!/usr/bin/env python3
+# This program will let you test your ESC and brushless motor on Ubuntu Server.
+# Make sure your battery is not connected if you are going to calibrate it at first.
+# Since you are testing your motor, I hope you don't have your propeller attached!
+
+import time
+from gpiozero import PWMOutputDevice
+
+ESC = 4  # GPIO 4 (Physical Pin 7)
+
+# Initialize the pin at 50Hz (standard for ESCs)
+esc_pin = PWMOutputDevice(ESC, frequency=50)
+
+max_value = 2000 # change this if your ESC's max value is different
+min_value = 700  # change this if your ESC's min value is different
+
+print("For first time launch, select calibrate")
+print("Type the exact word for the function you want")
+print("calibrate OR manual OR control OR arm OR stop")
+
+def set_speed(value):
+    """Converts a pulse width (700-2000us) to a 0.0 to 1.0 duty cycle for gpiozero."""
+    if value == 0:
+        esc_pin.value = 0
+    else:
+        # 50Hz period is 20000us. Duty cycle = pulse_width / total_period
+        esc_pin.value = value / 20000.0
+
+def manual_drive(): 
+    print(f"You have selected manual option so give a value between {min_value} and {max_value}")    
+    while True:
+        inp = input()
+        if inp == "stop":
+            stop()
+            break
+        elif inp == "control":
+            control()
+            break
+        elif inp == "arm":
+            arm()
+            break	
+        else:
+            try:
+                val = int(inp)
+                if min_value <= val <= max_value or val == 0:
+                    set_speed(val)
+                else:
+                    print(f"Out of range! Enter a value between {min_value} and {max_value}, or 0.")
+            except ValueError:
+                print("Please enter a valid number or command.")
+                
+def calibrate():   
+    set_speed(0)
+    print("Disconnect the battery and press Enter")
+    inp = input()
+    if inp == '':
+        set_speed(max_value)
+        print("Connect the battery NOW.. you will hear two beeps, then wait for a gradual falling tone then press Enter")
+        inp = input()
+        if inp == '':            
+            set_speed(min_value)
+            print("Special tone playing...")
+            time.sleep(7)
+            print("Wait for it ....")
+            time.sleep(5)
+            print("Working on it, DONT WORRY JUST WAIT.....")
+            set_speed(0)
+            time.sleep(2)
+            print("Arming ESC now...")
+            set_speed(min_value)
+            time.sleep(1)
+            print("Calibration complete.")
+            control() 
+            
+def control(): 
+    print("I'm Starting the motor. I hope it's calibrated and armed.")
+    time.sleep(1)
+    speed = 1500    
+    print("Controls - a to decrease speed & d to increase speed OR q to decrease a lot & e to increase a lot")
+    while True:
+        set_speed(speed)
+        inp = input()
+        
+        if inp == "q":
+            speed -= 100    
+            print(f"speed = {speed}")
+        elif inp == "e":    
+            speed += 100    
+            print(f"speed = {speed}")
+        elif inp == "d":
+            speed += 10     
+            print(f"speed = {speed}")
+        elif inp == "a":
+            speed -= 10     
+            print(f"speed = {speed}")
+        elif inp == "stop":
+            stop()          
+            break
+        elif inp == "manual":
+            manual_drive()
+            break
+        elif inp == "arm":
+            arm()
+            break	
+        else:
+            print("Invalid input! Press a, q, d, or e")
+            
+def arm(): 
+    print("Connect the battery and press Enter")
+    inp = input()    
+    if inp == '':
+        set_speed(0)
+        time.sleep(1)
+        set_speed(max_value)
+        time.sleep(1)
+        set_speed(min_value)
+        time.sleep(1)
+        control() 
+        
+def stop(): 
+    set_speed(0)
+    esc_pin.close()
+    print("Stopped and pin released.")
+
+# Main Program Loop Execution
+try:
+    inp = input()
+    if inp == "manual":
+        manual_drive()
+    elif inp == "calibrate":
+        calibrate()
+    elif inp == "arm":
+        arm()
+    elif inp == "control":
+        control()
+    elif inp == "stop":
+        stop()
+    else:
+        print("Invalid command. Please restart the program.")
+except KeyboardInterrupt:
+    stop()
+    print("\nProgram interrupted by user. Safety shutdown complete.")
