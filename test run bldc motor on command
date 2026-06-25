@@ -1,0 +1,118 @@
+## flash this on esp32- 
+   // esp32_bridge.ino
+#include <ESP32Servo.h>
+
+#define TDS_PIN 34
+#define ESC_PIN 25
+
+Servo esc;
+int currentPWM = 1000;
+
+void setup() {
+  Serial.begin(115200);
+  esc.attach(ESC_PIN, 1000, 2000);
+  esc.writeMicroseconds(1000);  // arm signal
+  delay(3000);                  // wait for ESC to arm
+  Serial.println("{\"status\":\"armed\"}");
+}
+
+float readTDS() {
+  int raw = analogRead(TDS_PIN);
+  float v = raw * 3.3f / 4095.0f;
+  return (133.42f*v*v*v - 255.86f*v*v + 857.39f*v) * 0.5f;
+}
+
+void loop() {
+  // Non-blocking serial read for PWM command
+  while (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    int idx = line.indexOf("\"pwm\":");
+    if (idx != -1) {
+      int val = line.substring(idx + 6).toInt();
+      currentPWM = constrain(val, 1000, 2000);
+      esc.writeMicroseconds(currentPWM);
+    }
+  }
+
+  // Publish sensor + feedback JSON
+  Serial.print("{\"tds\":");
+  Serial.print(readTDS(), 1);
+  Serial.print(",\"pwm\":");
+  Serial.print(currentPWM);
+  Serial.println("}");
+
+  delay(500);
+}
+
+----------------------------------------------------------
+
+##flash this code thru nano filename.py on pi
+  #!/usr/bin/env python3
+# ~/esp32_bridge.py
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float32, Int32
+import serial, json, threading
+
+class ESP32Bridge(Node):
+    def __init__(self):
+        super().__init__('esp32_bridge')
+
+        # Check port: ls /dev/ttyUSB* or /dev/ttyACM*
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+
+        self.tds_pub = self.create_publisher(Float32, '/water/tds', 10)
+        self.pwm_pub = self.create_publisher(Int32, '/esp32/pwm_echo', 10)
+        self.create_subscription(Int32, '/cmd/pwm', self.on_pwm_cmd, 10)
+
+        threading.Thread(target=self.read_loop, daemon=True).start()
+        self.get_logger().info('ESP32 bridge running')
+
+    def read_loop(self):
+        while rclpy.ok():
+            try:
+                line = self.ser.readline().decode('utf-8').strip()
+                if not line: continue
+                d = json.loads(line)
+                if 'tds' in d:
+                    self.tds_pub.publish(Float32(data=float(d['tds'])))
+                if 'pwm' in d:
+                    self.pwm_pub.publish(Int32(data=int(d['pwm'])))
+            except: pass
+
+    def on_pwm_cmd(self, msg):
+        pwm = max(1000, min(2000, msg.data))
+        self.ser.write((json.dumps({'pwm': pwm}) + '\n').encode())
+        self.get_logger().info(f'→ ESP32 PWM: {pwm}')
+
+def main():
+    rclpy.init()
+    rclpy.spin(ESP32Bridge())
+
+if __name__ == '__main__':
+    main()
+
+
+-------------------------------
+to run on pi=
+##  # Find the port first
+ls /dev/ttyUSB* /dev/ttyACM*
+
+# If it's ttyACM0, edit the script accordingly. Then:
+pip3 install pyserial
+
+# Terminal 1 pi — foxglove_bridge (probably already running, skip if so)
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+
+# Terminal 2 pi— your bridge node
+python3 esp32_bridge.py
+
+# terminal 3 of laptop-
+bash = ssh -L 8765:localhost:8765 newpi@pi's ip
+
+open foxglove and tadaaaa
+
+thru publish can give speed cmd
+thru plot can see readings
