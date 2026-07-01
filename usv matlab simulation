@@ -1,0 +1,246 @@
+%% USV Full Mission Simulation
+##full logic of the usv how it will behave ideally with all the sensors integrated
+% LOS waypoint guidance + PID heading control + 3-DOF dynamics
+% + simulated water-quality sensor monitoring (pH, TDS, DO)
+%
+% Vessel parameters reused/consistent with usv_main_sim.m
+% Pond is a placeholder 20m x 15m rectangle with 4 feeding zones + 1 home dock
+
+clear; clc; close all;
+rng(42);   % reproducible noise for sensors
+
+%% --- Vessel parameters (3-DOF model) ---
+m   = 8.0;      % mass (kg)
+Iz  = 0.5;      % yaw inertia (kg*m^2)
+Xu  = -2.0;     % surge drag coeff
+Yv  = -3.0;     % sway drag coeff
+Nr  = -0.5;     % yaw drag coeff
+B   = 0.4;      % thruster separation (m)
+T_max = 6.0;    % max thrust per fan (N)
+
+%% --- Simulation settings ---
+dt = 0.05;
+max_time = 250;
+max_steps = round(max_time/dt);
+
+%% --- Pond + feeding zone waypoints (placeholder 20x15 m pond) ---
+waypoints = [ 3  3;
+             16  3;
+             16 11;
+              3 11;
+              1  1];          % last row = home/dock (not a feeding zone)
+is_feed_zone = [true true true true false];
+accept_radius     = 1.0;       % m, waypoint arrival tolerance
+feed_dwell_steps  = round(3/dt);   % pause 3s at each feeding zone
+home_dwell_steps  = round(2/dt);   % pause 2s at home
+
+%% --- Guidance + control gains ---
+Kp_psi = 3.0;     % heading P gain
+Kd_psi = 0.6;     % heading D gain
+u_des  = 0.5;     % desired cruise speed (m/s)
+Kp_u   = 2.0;     % surge speed P gain
+
+%% --- Simulated water-quality sensor fields (placeholder spatial model) ---
+% NOTE: these are NOT live sensor readings. They are stand-in functions
+% so the monitoring pipeline + feed-decision logic can be validated now.
+% Once the Pi + pH/TDS/DO probes are connected, these three lines are the
+% only thing that gets swapped for real ADC reads.
+ph_field  = @(x,y) 7.2 + 0.4*sin(x/6) + 0.2*cos(y/5);
+tds_field = @(x,y) 310 + 40*sin(x/10 + y/8);
+do_field  = @(x,y) 6.8 + 1.2*cos(x/7) - 0.4*sin(y/6);
+do_threshold = 5.75;  % mg/L — below this, skip feeding (fish stressed)
+
+%% --- Initial state ---
+eta = [0; 0; 0];     % [x, y, psi]
+nu  = [0; 0; 0];      % [u, v, r]
+wp_idx = 1;
+mode = 'TRANSIT';     % 'TRANSIT' or 'DWELL'
+dwell_count = 0;
+e_psi_prev = 0;
+
+%% --- Storage ---
+hist_t   = zeros(1, max_steps);
+hist_eta = zeros(3, max_steps);
+hist_nu  = zeros(3, max_steps);
+hist_ph  = zeros(1, max_steps);
+hist_tds = zeros(1, max_steps);
+hist_do  = zeros(1, max_steps);
+hist_err = zeros(1, max_steps);
+
+feed_log = {};   % {time, zone#, x, y, pH, TDS, DO, action}
+
+k = 0;
+mission_done = false;
+
+while ~mission_done && k < max_steps
+    k = k + 1;
+    t_now = (k-1)*dt;
+
+    x = eta(1); y = eta(2); psi = eta(3);
+    target = waypoints(wp_idx, :);
+    dx = target(1) - x;
+    dy = target(2) - y;
+    dist_to_wp = hypot(dx, dy);
+
+    % continuous sensor sampling (placeholder for live Pi feed)
+    ph_now  = ph_field(x,y)  + 0.03*randn;
+    tds_now = tds_field(x,y) + 3*randn;
+    do_now  = do_field(x,y)  + 0.08*randn;
+
+    if strcmp(mode, 'TRANSIT')
+        % --- LOS guidance: desired heading toward current target ---
+        psi_d = atan2(dy, dx);
+        e_psi = atan2(sin(psi_d - psi), cos(psi_d - psi));   % wrapped error
+        de_psi = (e_psi - e_psi_prev)/dt;
+        e_psi_prev = e_psi;
+
+        % --- PID (PD) heading control ---
+        tau_yaw = Kp_psi*e_psi + Kd_psi*de_psi;
+
+        % --- surge speed control with drag feedforward ---
+        u_now = nu(1);
+        tau_surge = -Xu*u_des + Kp_u*(u_des - u_now);
+
+        % convert commanded (surge, yaw) into differential thrust
+        T_L = (tau_surge - tau_yaw*2/B)/2;
+        T_R = (tau_surge + tau_yaw*2/B)/2;
+        T_L = max(min(T_L, T_max), -T_max);
+        T_R = max(min(T_R, T_max), -T_max);
+
+        if dist_to_wp < accept_radius
+            % arrived at this waypoint -> switch to dwell/feeding
+            mode = 'DWELL';
+            if is_feed_zone(wp_idx)
+                dwell_count = feed_dwell_steps;
+                if do_now >= do_threshold
+                    action = 'FED';
+                else
+                    action = 'SKIPPED (low DO)';
+                end
+                feed_log(end+1,:) = {t_now, wp_idx, x, y, ph_now, tds_now, do_now, action};
+            else
+                dwell_count = home_dwell_steps;
+                feed_log(end+1,:) = {t_now, wp_idx, x, y, ph_now, tds_now, do_now, 'RETURNED HOME'};
+            end
+        end
+
+    else  % DWELL — vehicle holds, no thrust
+        T_L = 0; T_R = 0;
+        e_psi = 0;
+        dwell_count = dwell_count - 1;
+        if dwell_count <= 0
+            if wp_idx >= size(waypoints,1)
+                mission_done = true;   % finishes after this step is logged
+            else
+                wp_idx = wp_idx + 1;
+                mode = 'TRANSIT';
+            end
+        end
+    end
+
+    % --- 3-DOF dynamics integration ---
+    tau_surge_applied = T_L + T_R;
+    tau_yaw_applied   = (T_R - T_L) * (B/2);
+
+    u = nu(1); v = nu(2); r = nu(3);
+    u_dot = (1/m)  * (Xu*u + tau_surge_applied);
+    v_dot = (1/m)  * (Yv*v);
+    r_dot = (1/Iz) * (Nr*r + tau_yaw_applied);
+
+    J = [cos(psi) -sin(psi) 0; sin(psi) cos(psi) 0; 0 0 1];
+    eta_dot = J*nu;
+
+    nu  = nu  + [u_dot; v_dot; r_dot]*dt;
+    eta = eta + eta_dot*dt;
+
+    % --- log this step ---
+    hist_t(k)     = t_now;
+    hist_eta(:,k) = eta;
+    hist_nu(:,k)  = nu;
+    hist_ph(k)    = ph_now;
+    hist_tds(k)   = tds_now;
+    hist_do(k)    = do_now;
+    hist_err(k)   = e_psi;
+end
+
+% trim storage to actual length used
+hist_t   = hist_t(1:k);
+hist_eta = hist_eta(:,1:k);
+hist_nu  = hist_nu(:,1:k);
+hist_ph  = hist_ph(1:k);
+hist_tds = hist_tds(1:k);
+hist_do  = hist_do(1:k);
+hist_err = hist_err(1:k);
+
+%% --- Print feeding/sensor log to console ---
+fprintf('\n=== FEEDING ZONE LOG ===\n');
+fprintf('%-7s %-5s %-7s %-7s %-7s %-8s %-7s %-20s\n', ...
+    'Time','Zone','x','y','pH','TDS','DO','Action');
+for r = 1:size(feed_log,1)
+    fprintf('%-7.1f %-5d %-7.2f %-7.2f %-7.2f %-8.1f %-7.2f %-20s\n', ...
+        feed_log{r,1}, feed_log{r,2}, feed_log{r,3}, feed_log{r,4}, ...
+        feed_log{r,5}, feed_log{r,6}, feed_log{r,7}, feed_log{r,8});
+end
+fprintf('\n');
+
+%% --- Figure 1: Navigation / control performance ---
+figure('Name','USV Navigation Performance');
+
+subplot(2,2,1);
+plot(hist_eta(1,:), hist_eta(2,:), 'b-', 'LineWidth', 1.8); hold on;
+plot(hist_eta(1,1), hist_eta(2,1), 'ks', 'MarkerFaceColor','k', 'MarkerSize', 8);
+for w = 1:size(waypoints,1)
+    if is_feed_zone(w)
+        plot(waypoints(w,1), waypoints(w,2), 'r^', 'MarkerFaceColor','r', 'MarkerSize', 10);
+        text(waypoints(w,1)+0.4, waypoints(w,2)+0.4, sprintf('Zone %d', w));
+    else
+        plot(waypoints(w,1), waypoints(w,2), 'gs', 'MarkerFaceColor','g', 'MarkerSize', 10);
+        text(waypoints(w,1)+0.4, waypoints(w,2)+0.4, 'Home');
+    end
+end
+xlabel('x (m)'); ylabel('y (m)'); title('USV Mission Trajectory');
+axis equal; grid on; legend('Path','Start','Location','best');
+
+subplot(2,2,2);
+plot(hist_t, rad2deg(hist_err), 'b');
+xlabel('Time (s)'); ylabel('Heading error (deg)');
+title('LOS Heading Error (PID-controlled)'); grid on;
+
+subplot(2,2,3);
+plot(hist_t, hist_nu(1,:), 'b');
+xlabel('Time (s)'); ylabel('Surge speed u (m/s)');
+title('Surge Velocity'); grid on;
+
+subplot(2,2,4);
+plot(hist_t, hist_nu(3,:), 'r');
+xlabel('Time (s)'); ylabel('Yaw rate r (rad/s)');
+title('Yaw Rate'); grid on;
+
+%% --- Figure 2: Simulated water-quality sensors ---
+figure('Name','Water Quality Monitoring (Simulated)');
+
+subplot(3,1,1);
+plot(hist_t, hist_ph, 'Color', [0 0.5 0]); hold on;
+for r = 1:size(feed_log,1)
+    [~, idx] = min(abs(hist_t - feed_log{r,1}));
+    plot(hist_t(idx), hist_ph(idx), 'ro', 'MarkerFaceColor','r');
+end
+ylabel('pH'); title('Simulated pH (placeholder - swap for live sensor feed)'); grid on;
+
+subplot(3,1,2);
+plot(hist_t, hist_tds, 'Color', [0.2 0.4 0.8]); hold on;
+for r = 1:size(feed_log,1)
+    [~, idx] = min(abs(hist_t - feed_log{r,1}));
+    plot(hist_t(idx), hist_tds(idx), 'ro', 'MarkerFaceColor','r');
+end
+ylabel('TDS (ppm)'); title('Simulated TDS'); grid on;
+
+subplot(3,1,3);
+plot(hist_t, hist_do, 'Color', [0.8 0.3 0.1]); hold on;
+for r = 1:size(feed_log,1)
+    [~, idx] = min(abs(hist_t - feed_log{r,1}));
+    plot(hist_t(idx), hist_do(idx), 'ro', 'MarkerFaceColor','r');
+end
+yline_val = do_threshold;
+plot([hist_t(1) hist_t(end)], [yline_val yline_val], 'k--');
+xlabel('Time (s)'); ylabel('DO (mg/L)'); title('Simulated Dissolved Oxygen (dashed = feed threshold)'); grid on;
